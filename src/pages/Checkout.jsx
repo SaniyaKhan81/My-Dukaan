@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { DollarSign, Lock, CreditCard, CheckCircle } from 'lucide-react'
+import { DollarSign, Lock, CreditCard, CheckCircle, Wallet } from 'lucide-react'
 
 // Mock data - replace with actual API calls
 const mockResources = {
@@ -27,6 +27,7 @@ export default function Checkout() {
   const navigate = useNavigate()
   const resource = mockResources[resourceId] || mockResources['1']
   
+  const [paymentMethod, setPaymentMethod] = useState('stripe') // 'stripe' or 'paypal'
   const [paymentData, setPaymentData] = useState({
     cardNumber: '',
     expiryDate: '',
@@ -55,9 +56,23 @@ export default function Checkout() {
     e.preventDefault()
     setIsProcessing(true)
     
-    // TODO: Implement actual payment processing (Stripe, PayPal, etc.)
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    // TODO: Implement actual payment processing
+    // For Stripe: Use @stripe/stripe-js and @stripe/react-stripe-js
+    // For PayPal: Use @paypal/react-paypal-js
+    
+    if (paymentMethod === 'stripe') {
+      // Validate card details
+      if (!paymentData.cardNumber || !paymentData.expiryDate || !paymentData.cvv || !paymentData.cardholderName) {
+        setIsProcessing(false)
+        alert('Please fill in all card details')
+        return
+      }
+      // Simulate Stripe payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    } else if (paymentMethod === 'paypal') {
+      // Simulate PayPal redirect and payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    }
     
     setIsProcessing(false)
     setIsComplete(true)
@@ -127,10 +142,51 @@ export default function Checkout() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Payment Method Selection */}
                 <div>
-                  <label htmlFor="cardholderName" className="block text-sm font-medium text-gray-700 mb-2">
-                    Cardholder Name
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Select Payment Method
                   </label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('stripe')}
+                      className={`p-4 border-2 rounded-lg transition-all ${
+                        paymentMethod === 'stripe'
+                          ? 'border-primary-600 bg-primary-50'
+                          : 'border-gray-300 hover:border-primary-300'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <CreditCard className="h-5 w-5 text-primary-600" />
+                        <span className="font-semibold text-gray-900">Stripe</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">Credit/Debit Card</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('paypal')}
+                      className={`p-4 border-2 rounded-lg transition-all ${
+                        paymentMethod === 'paypal'
+                          ? 'border-primary-600 bg-primary-50'
+                          : 'border-gray-300 hover:border-primary-300'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Wallet className="h-5 w-5 text-primary-600" />
+                        <span className="font-semibold text-gray-900">PayPal</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">Pay with PayPal</p>
+                    </button>
+                  </div>
+                </div>
+
+                {paymentMethod === 'stripe' ? (
+                  <>
+                    <div>
+                      <label htmlFor="cardholderName" className="block text-sm font-medium text-gray-700 mb-2">
+                        Cardholder Name
+                      </label>
                   <input
                     type="text"
                     id="cardholderName"
@@ -197,10 +253,30 @@ export default function Checkout() {
                     />
                   </div>
                 </div>
+                  </>
+                ) : (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <Wallet className="h-6 w-6 text-blue-600" />
+                      <h3 className="font-semibold text-gray-900">Pay with PayPal</h3>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      You will be redirected to PayPal to complete your payment securely.
+                    </p>
+                    <div className="bg-white p-4 rounded border border-gray-200">
+                      <p className="text-sm text-gray-700">
+                        <strong>Amount:</strong> ${resource.price.toFixed(2)}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Click "Pay with PayPal" to proceed to PayPal checkout
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <p className="text-sm text-yellow-800">
-                    <strong>Note:</strong> This is a demo payment form. In production, integrate with a secure payment gateway like Stripe or PayPal.
+                    <strong>Note:</strong> This is a demo payment form. In production, integrate with actual Stripe or PayPal SDKs for secure payment processing.
                   </p>
                 </div>
 
@@ -216,8 +292,17 @@ export default function Checkout() {
                     </>
                   ) : (
                     <>
-                      <Lock className="h-5 w-5" />
-                      <span>Pay ${resource.price.toFixed(2)}</span>
+                      {paymentMethod === 'stripe' ? (
+                        <>
+                          <Lock className="h-5 w-5" />
+                          <span>Pay ${resource.price.toFixed(2)} with Stripe</span>
+                        </>
+                      ) : (
+                        <>
+                          <Wallet className="h-5 w-5" />
+                          <span>Pay ${resource.price.toFixed(2)} with PayPal</span>
+                        </>
+                      )}
                     </>
                   )}
                 </button>

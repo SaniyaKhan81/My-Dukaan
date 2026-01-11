@@ -1,20 +1,36 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { LogIn } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import Notification from '../components/Notification'
 
 export default function Login() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   })
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const navigate = useNavigate()
+  const { login } = useAuth()
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    // TODO: Implement actual authentication
-    console.log('Login:', formData)
-    // For now, just navigate to marketplace
-    navigate('/marketplace')
+    setError('')
+    setSuccess('')
+
+    try {
+      // Attempt to login
+      const user = login(formData.email, formData.password)
+      setSuccess(`Welcome back, ${user.name || user.email}! You've successfully logged in.`)
+      
+      // Navigate to marketplace after a short delay
+      setTimeout(() => {
+        navigate('/marketplace')
+      }, 2000)
+    } catch (err) {
+      setError(err.message || 'Invalid email or password. Please try again.')
+    }
   }
 
   const handleChange = (e) => {
@@ -26,6 +42,14 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <Notification 
+        message={success || error} 
+        type={success ? 'success' : 'error'} 
+        onClose={() => {
+          setSuccess('')
+          setError('')
+        }} 
+      />
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="flex justify-center">
@@ -78,6 +102,12 @@ export default function Login() {
               />
             </div>
           </div>
+
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+              {error}
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
             <div className="flex items-center">

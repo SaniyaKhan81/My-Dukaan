@@ -1,13 +1,13 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { ShoppingBag, Upload, Store, LogIn, UserPlus, LogOut, Home } from 'lucide-react'
-import { useState } from 'react'
+import { ShoppingBag, Upload, Store, LogIn, UserPlus, LogOut, User } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 export default function Navbar() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false) // TODO: Replace with actual auth state
+  const { isAuthenticated, user, logout } = useAuth()
   const navigate = useNavigate()
 
   const handleLogout = () => {
-    setIsAuthenticated(false)
+    logout()
     navigate('/')
   }
 
@@ -47,6 +47,10 @@ export default function Navbar() {
                   <Store className="h-4 w-4" />
                   <span>My Storefront</span>
                 </Link>
+                <div className="flex items-center space-x-2 text-gray-700">
+                  <User className="h-4 w-4" />
+                  <span className="text-sm">{user?.name || user?.email}</span>
+                </div>
                 <button
                   onClick={handleLogout}
                   className="text-gray-700 hover:text-primary-600 transition-colors flex items-center space-x-1"

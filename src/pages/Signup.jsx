@@ -1,6 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { UserPlus } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import Notification from '../components/Notification'
 
 export default function Signup() {
   const [formData, setFormData] = useState({
@@ -10,18 +12,40 @@ export default function Signup() {
     confirmPassword: '',
     studentId: '',
   })
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const navigate = useNavigate()
+  const { signup } = useAuth()
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    // TODO: Implement actual authentication
+    setError('')
+    setSuccess('')
+
+    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!')
+      setError('Passwords do not match!')
       return
     }
-    console.log('Signup:', formData)
-    // For now, just navigate to marketplace
-    navigate('/marketplace')
+
+    // Validate password length
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long')
+      return
+    }
+
+    try {
+      // Attempt to sign up
+      signup(formData)
+      setSuccess(`Welcome ${formData.name}! Your account has been created successfully.`)
+      
+      // Navigate to marketplace after a short delay
+      setTimeout(() => {
+        navigate('/marketplace')
+      }, 2000)
+    } catch (err) {
+      setError(err.message || 'An error occurred during signup. Please try again.')
+    }
   }
 
   const handleChange = (e) => {
@@ -33,6 +57,14 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <Notification 
+        message={success || error} 
+        type={success ? 'success' : 'error'} 
+        onClose={() => {
+          setSuccess('')
+          setError('')
+        }} 
+      />
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="flex justify-center">
@@ -130,6 +162,11 @@ export default function Signup() {
                 onChange={handleChange}
               />
             </div>
+            {error && (
+              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+                {error}
+              </div>
+            )}
           </div>
 
           <div>
