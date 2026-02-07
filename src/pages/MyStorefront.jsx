@@ -3,26 +3,7 @@ import { Store, Plus, Edit, Trash2, DollarSign, ShoppingBag } from 'lucide-react
 import { useState } from 'react'
 
 // Mock data - replace with actual API calls
-const mockStorefront = {
-  name: 'My Study Resources',
-  description: 'Quality solved assignments and study materials for students',
-  items: [
-    {
-      id: 1,
-      title: 'Calculus I Solved Assignments',
-      price: 15.99,
-      category: 'Mathematics',
-      sales: 23,
-    },
-    {
-      id: 2,
-      title: 'Physics Lab Reports',
-      price: 12.50,
-      category: 'Physics',
-      sales: 15,
-    },
-  ],
-}
+const mockStorefront = {}
 
 export default function MyStorefront() {
   const [storefront, setStorefront] = useState(mockStorefront)

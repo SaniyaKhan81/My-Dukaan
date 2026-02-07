@@ -3,44 +3,7 @@ import { Link } from 'react-router-dom'
 import { Search, Filter, ShoppingBag, DollarSign, User } from 'lucide-react'
 
 // Mock data - replace with actual API calls
-const mockResources = [
-  {
-    id: 1,
-    title: 'Calculus I Solved Assignments',
-    description: 'Complete solutions for all Calculus I assignments from Fall 2023',
-    price: 15.99,
-    seller: 'John Doe',
-    category: 'Mathematics',
-    image: 'https://via.placeholder.com/300x200?text=Calculus',
-  },
-  {
-    id: 2,
-    title: 'Physics Lab Reports',
-    description: 'Detailed lab reports for Physics 101 with diagrams and analysis',
-    price: 12.50,
-    seller: 'Jane Smith',
-    category: 'Physics',
-    image: 'https://via.placeholder.com/300x200?text=Physics',
-  },
-  {
-    id: 3,
-    title: 'Computer Science Algorithms',
-    description: 'Solved algorithm problems with explanations and time complexity analysis',
-    price: 20.00,
-    seller: 'Mike Johnson',
-    category: 'Computer Science',
-    image: 'https://via.placeholder.com/300x200?text=Algorithms',
-  },
-  {
-    id: 4,
-    title: 'Chemistry Study Guide',
-    description: 'Comprehensive study guide for Organic Chemistry with practice problems',
-    price: 18.75,
-    seller: 'Sarah Wilson',
-    category: 'Chemistry',
-    image: 'https://via.placeholder.com/300x200?text=Chemistry',
-  },
-]
+const mockResources = []
 
 export default function Marketplace() {
   const [searchQuery, setSearchQuery] = useState('')
