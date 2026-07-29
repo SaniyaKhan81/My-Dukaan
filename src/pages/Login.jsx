@@ -5,50 +5,40 @@ import { useAuth } from '../context/AuthContext'
 import Notification from '../components/Notification'
 
 export default function Login() {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  })
+  const [formData, setFormData] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const navigate = useNavigate()
   const { login } = useAuth()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setSuccess('')
+    setSubmitting(true)
 
     try {
-      // Attempt to login
-      const user = login(formData.email, formData.password)
-      setSuccess(`Welcome back, ${user.name || user.email}! You've successfully logged in.`)
-      
-      // Navigate to marketplace after a short delay
-      setTimeout(() => {
-        navigate('/marketplace')
-      }, 2000)
+      const user = await login(formData.email, formData.password)
+      setSuccess(`Welcome back, ${user.name}!`)
+      setTimeout(() => navigate('/marketplace'), 1500)
     } catch (err) {
-      setError(err.message || 'Invalid email or password. Please try again.')
+      setError(err.message || 'Invalid email or password.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+    setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <Notification 
-        message={success || error} 
-        type={success ? 'success' : 'error'} 
-        onClose={() => {
-          setSuccess('')
-          setError('')
-        }} 
+      <Notification
+        message={success || error}
+        type={success ? 'success' : 'error'}
+        onClose={() => { setSuccess(''); setError('') }}
       />
       <div className="max-w-md w-full space-y-8">
         <div>
@@ -69,38 +59,26 @@ export default function Login() {
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-t-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm transition-colors"
-                placeholder="Email address"
-                value={formData.email}
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="appearance-none rounded-b-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm transition-colors"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-              />
-            </div>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              className="appearance-none rounded-t-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              placeholder="Email address"
+              value={formData.email}
+              onChange={handleChange}
+            />
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              className="appearance-none rounded-b-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+            />
           </div>
 
           {error && (
@@ -109,37 +87,15 @@ export default function Login() {
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                Remember me
-              </label>
-            </div>
-
-            <div className="text-sm">
-              <a href="#" className="font-medium text-primary-600 hover:text-primary-500">
-                Forgot your password?
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-primary hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all transform hover:-translate-y-0.5"
-            >
-              Sign in
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full py-2 px-4 text-sm font-medium rounded-md text-white bg-gradient-primary hover:shadow-lg disabled:opacity-70"
+          >
+            {submitting ? 'Signing in...' : 'Sign in'}
+          </button>
         </form>
       </div>
     </div>
   )
 }
-

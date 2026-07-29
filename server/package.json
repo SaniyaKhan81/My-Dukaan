@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "seed": "node seeder.js",
+    "clear": "node clearDb.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -13,11 +15,16 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mammoth": "^1.12.0",
     "mongoose": "^9.6.2",
-    "mysql2": "^3.16.3"
+    "multer": "^2.1.1",
+    "mysql2": "^3.16.3",
+    "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

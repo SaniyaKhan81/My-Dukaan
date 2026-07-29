@@ -1,228 +1,310 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
-import { DollarSign, Lock, CreditCard, CheckCircle, Wallet, Printer, Download, ArrowLeft } from 'lucide-react'
-
-// Mock data
-const mockResources = {
-  '1': { id: 1, title: 'Calculus I Solved Assignments', price: 15.99, category: 'Mathematics' },
-  '2': { id: 2, title: 'Physics Lab Reports', price: 12.50, category: 'Physics' },
-}
+import { useState, useEffect } from 'react'
+import { Lock, CreditCard, CheckCircle, Wallet, Printer, ArrowLeft, Smartphone } from 'lucide-react'
+import { formatPKR, API_BASE } from '../data/constants'
+import { apiFetch } from '../utils/api'
+import { validatePaymentDetails } from '../utils/validatePayment'
 
 export default function Checkout() {
   const { resourceId } = useParams()
   const navigate = useNavigate()
-  const resource = mockResources[resourceId] || mockResources['1']
-  
-  const [paymentMethod, setPaymentMethod] = useState('stripe')
-  const [paymentData, setPaymentData] = useState({
+  const [resource, setResource] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [paymentMethod, setPaymentMethod] = useState('jazzcash')
+  const [walletData, setWalletData] = useState({
+    mobileNumber: '',
+    accountName: '',
+    walletPin: '',
+    email: '',
+  })
+  const [cardData, setCardData] = useState({
     cardNumber: '',
     expiryDate: '',
     cvv: '',
     cardholderName: '',
   })
+  const [formErrors, setFormErrors] = useState([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [receipt, setReceipt] = useState(null)
 
-  // Proper Input Formatting Logic
-  const handleCardFormatting = (e) => {
-    let { name, value } = e.target;
-    
-    if (name === 'cardNumber') {
-      // Formats: 1234 5678 1234 5678
-      value = value.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ').trim().slice(0, 19);
-    } else if (name === 'expiryDate') {
-      // Formats: MM/YY
-      value = value.replace(/\D/g, '').replace(/(\d{2})(?=\d)/g, '$1/').slice(0, 5);
-    } else if (name === 'cvv') {
-      // Limits to 3 or 4 digits
-      value = value.replace(/\D/g, '').slice(0, 3);
-    }
+  useEffect(() => {
+    apiFetch(`/api/resources/${resourceId}`)
+      .then(setResource)
+      .catch(() => navigate('/marketplace'))
+      .finally(() => setLoading(false))
+  }, [resourceId, navigate])
 
-    setPaymentData({ ...paymentData, [name]: value });
-  };
+  const handleCardFormatting = (e) => {
+    let { name, value } = e.target
+    if (name === 'cardNumber') {
+      value = value.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ').trim().slice(0, 19)
+    } else if (name === 'expiryDate') {
+      value = value.replace(/\D/g, '').replace(/(\d{2})(?=\d)/g, '$1/').slice(0, 5)
+    } else if (name === 'cvv') {
+      value = value.replace(/\D/g, '').slice(0, 4)
+    }
+    setCardData({ ...cardData, [name]: value })
+  }
+
+  const handleWalletChange = (e) => {
+    let { name, value } = e.target
+    if (name === 'mobileNumber') {
+      value = value.replace(/\D/g, '').slice(0, 11)
+    } else if (name === 'walletPin') {
+      value = value.replace(/\D/g, '').slice(0, 6)
+    }
+    setWalletData({ ...walletData, [name]: value })
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setIsProcessing(true)
-    
-    // Simulate API Call to a Payment Gateway
-    await new Promise(resolve => setTimeout(resolve, 2500))
-    
-    // Generate POS Receipt Data
-    const transactionReceipt = {
-      orderId: `MD-${Math.floor(100000 + Math.random() * 900000)}`,
-      date: new Date().toLocaleString('en-PK'),
-      item: resource.title,
-      amount: resource.price,
-      cardLast4: paymentData.cardNumber.slice(-4),
-      transactionStatus: 'COMPLETED'
+    setFormErrors([])
+
+    const paymentDetails = paymentMethod === 'card' ? cardData : walletData
+    const validation = validatePaymentDetails(paymentMethod, paymentDetails)
+
+    if (!validation.valid) {
+      setFormErrors(validation.errors)
+      return
     }
 
-    setReceipt(transactionReceipt)
-    setIsProcessing(false)
+    setIsProcessing(true)
+
+    try {
+      const transaction = await apiFetch('/api/transactions/checkout', {
+        method: 'POST',
+        body: JSON.stringify({ resourceId, paymentMethod, paymentDetails }),
+      })
+
+      setReceipt({
+        orderId: transaction.orderId,
+        date: new Date(transaction.createdAt).toLocaleString('en-PK'),
+        item: transaction.resource.title,
+        amount: transaction.amount,
+        paymentMethod: transaction.paymentMethod,
+        paymentRef: transaction.paymentRef,
+        resourceId: transaction.resource._id,
+      })
+    } catch (err) {
+      setFormErrors([err.message])
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
-  // --- RECEIPT VIEW (Point of Sale Output) ---
+  const handleDownload = async () => {
+    const token = localStorage.getItem('token')
+    const res = await fetch(`${API_BASE}/api/resources/${receipt.resourceId}/download`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) {
+      alert('Download failed')
+      return
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = receipt.item
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center"><p className="text-gray-500">Loading...</p></div>
+  }
+
+  if (!resource) return null
+
+  const sellerName = resource.seller?.name || resource.sellerName || 'Unknown'
+
   if (receipt) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden">
           <div className="bg-gradient-to-br from-primary-600 to-purple-700 p-8 text-center text-white">
-            <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md">
-              <CheckCircle className="h-10 w-10 text-white" />
-            </div>
+            <CheckCircle className="h-10 w-10 mx-auto mb-4" />
             <h2 className="text-2xl font-bold">Payment Successful</h2>
-            <p className="text-purple-100 opacity-80">Thank you for your purchase!</p>
+            <p className="text-purple-100 opacity-80">Receipt generated — transaction saved to ledger</p>
           </div>
 
           <div className="p-8">
             <div className="flex justify-between items-center mb-6">
-              <span className="text-gray-400 text-xs uppercase tracking-widest font-semibold">Digital Receipt</span>
+              <span className="text-gray-400 text-xs uppercase tracking-widest font-semibold">Official Receipt</span>
               <span className="text-primary-600 font-mono text-sm">{receipt.orderId}</span>
             </div>
 
-            <div className="space-y-4 border-b border-dashed border-gray-200 pb-6 mb-6">
+            <div className="space-y-3 border-b border-dashed border-gray-200 pb-6 mb-6 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Resource</span>
-                <span className="font-medium text-gray-900">{receipt.item}</span>
+                <span className="font-medium text-right max-w-[55%]">{receipt.item}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Date</span>
-                <span className="text-gray-900">{receipt.date}</span>
+                <span>{receipt.date}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Payment Method</span>
-                <span className="text-gray-900">Card (**** {receipt.cardLast4})</span>
+                <span className="text-gray-600">Payment</span>
+                <span className="capitalize">{receipt.paymentMethod}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Reference</span>
+                <span className="font-mono text-xs">{receipt.paymentRef}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Status</span>
+                <span className="text-green-600 font-semibold">COMPLETED</span>
               </div>
             </div>
 
             <div className="flex justify-between items-center mb-8">
-              <span className="text-lg font-bold text-gray-900">Total Paid</span>
-              <span className="text-2xl font-black text-primary-600">${receipt.amount.toFixed(2)}</span>
+              <span className="text-lg font-bold">Total Paid</span>
+              <span className="text-2xl font-black text-primary-600">{formatPKR(receipt.amount)}</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              <button onClick={() => window.print()} className="flex items-center justify-center space-x-2 py-2 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-all text-sm">
-                <Printer className="h-4 w-4" /> <span>Print</span>
-              </button>
-              <button className="flex items-center justify-center space-x-2 py-2 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-all text-sm">
-                <Download className="h-4 w-4" /> <span>Download</span>
-              </button>
-            </div>
-
-            <button
-              onClick={() => navigate('/marketplace')}
-              className="w-full bg-gray-900 text-white py-3 rounded-xl font-semibold hover:bg-black transition-all shadow-lg"
-            >
-              Continue to Marketplace
+            <button onClick={handleDownload}
+              className="block w-full text-center bg-indigo-600 text-white py-3 rounded-xl font-semibold mb-3 hover:bg-indigo-700">
+              Download Full Document
             </button>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => window.print()}
+                className="flex items-center justify-center gap-2 py-2 border rounded-xl text-gray-600 hover:bg-gray-50 text-sm">
+                <Printer className="h-4 w-4" /> Print Receipt
+              </button>
+              <button onClick={() => navigate('/marketplace')}
+                className="py-2 border rounded-xl text-gray-600 hover:bg-gray-50 text-sm">
+                Marketplace
+              </button>
+            </div>
           </div>
         </div>
       </div>
     )
   }
 
-  // --- PAYMENT FORM VIEW ---
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-4xl mx-auto px-4">
-        <button onClick={() => navigate(-1)} className="flex items-center text-gray-500 hover:text-primary-600 mb-6 transition-colors">
+        <button onClick={() => navigate(-1)} className="flex items-center text-gray-500 hover:text-primary-600 mb-6">
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </button>
 
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Card Information</h2>
-              
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cardholder Name</label>
-                  <input
-                    type="text"
-                    name="cardholderName"
-                    required
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                    placeholder="Full name as on card"
-                    value={paymentData.cardholderName}
-                    onChange={handleCardFormatting}
-                  />
-                </div>
+            <div className="bg-white rounded-2xl shadow-sm border p-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Payment Details</h2>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
-                  <div className="relative">
-                    <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
-                      type="text"
-                      name="cardNumber"
-                      required
-                      className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                      placeholder="0000 0000 0000 0000"
-                      value={paymentData.cardNumber}
-                      onChange={handleCardFormatting}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
-                    <input
-                      type="text"
-                      name="expiryDate"
-                      required
-                      placeholder="MM/YY"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                      value={paymentData.expiryDate}
-                      onChange={handleCardFormatting}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">CVV</label>
-                    <input
-                      type="password"
-                      name="cvv"
-                      required
-                      placeholder="•••"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                      value={paymentData.cvv}
-                      onChange={handleCardFormatting}
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-4">
-                  <button
-                    type="submit"
-                    disabled={isProcessing}
-                    className="w-full bg-primary-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all transform active:scale-[0.98] disabled:opacity-70 flex items-center justify-center space-x-3"
-                  >
-                    {isProcessing ? (
-                      <div className="animate-spin rounded-full h-6 w-6 border-4 border-white border-t-transparent"></div>
-                    ) : (
-                      <>
-                        <Lock className="h-5 w-5" />
-                        <span>Pay ${resource.price.toFixed(2)} Securely</span>
-                      </>
-                    )}
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                {[
+                  { id: 'jazzcash', label: 'JazzCash', icon: Smartphone },
+                  { id: 'easypaisa', label: 'EasyPaisa', icon: Wallet },
+                  { id: 'card', label: 'Debit/Credit Card', icon: CreditCard },
+                ].map(({ id, label, icon: Icon }) => (
+                  <button key={id} type="button" onClick={() => { setPaymentMethod(id); setFormErrors([]) }}
+                    className={`p-4 rounded-xl border-2 text-center transition-all ${paymentMethod === id ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <Icon className="h-6 w-6 mx-auto mb-1 text-primary-600" />
+                    <span className="text-sm font-medium">{label}</span>
                   </button>
+                ))}
+              </div>
+
+              {formErrors.length > 0 && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {formErrors.map((err, i) => <p key={i}>{err}</p>)}
                 </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {(paymentMethod === 'jazzcash' || paymentMethod === 'easypaisa') && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {paymentMethod === 'jazzcash' ? 'JazzCash' : 'EasyPaisa'} Mobile Number *
+                      </label>
+                      <input type="tel" name="mobileNumber" required placeholder="03XXXXXXXXX"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={walletData.mobileNumber} onChange={handleWalletChange} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Account Holder Name *</label>
+                      <input type="text" name="accountName" required placeholder="Name as on wallet"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={walletData.accountName} onChange={handleWalletChange} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Wallet PIN *</label>
+                      <input type="password" name="walletPin" required placeholder="4–6 digit PIN" maxLength={6}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={walletData.walletPin} onChange={handleWalletChange} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email for Receipt *</label>
+                      <input type="email" name="email" required placeholder="you@email.com"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={walletData.email} onChange={handleWalletChange} />
+                    </div>
+                    <p className="text-xs text-gray-500">Simulated payment — validates format only, no real charge</p>
+                  </>
+                )}
+
+                {paymentMethod === 'card' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Cardholder Name *</label>
+                      <input type="text" name="cardholderName" required placeholder="As printed on card"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={cardData.cardholderName} onChange={handleCardFormatting} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Card Number *</label>
+                      <input type="text" name="cardNumber" required placeholder="0000 0000 0000 0000"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                        value={cardData.cardNumber} onChange={handleCardFormatting} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Expiry *</label>
+                        <input type="text" name="expiryDate" required placeholder="MM/YY"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                          value={cardData.expiryDate} onChange={handleCardFormatting} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">CVV *</label>
+                        <input type="password" name="cvv" required placeholder="•••"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                          value={cardData.cvv} onChange={handleCardFormatting} />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">Card validated via Luhn algorithm & expiry check</p>
+                  </>
+                )}
+
+                <button type="submit" disabled={isProcessing}
+                  className="w-full bg-primary-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-primary-700 disabled:opacity-70 flex items-center justify-center gap-3 mt-2">
+                  {isProcessing ? (
+                    <div className="animate-spin rounded-full h-6 w-6 border-4 border-white border-t-transparent" />
+                  ) : (
+                    <>
+                      <Lock className="h-5 w-5" />
+                      <span>Pay {formatPKR(resource.price)} Securely</span>
+                    </>
+                  )}
+                </button>
               </form>
             </div>
           </div>
 
-          <div className="md:col-span-1">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h3 className="font-bold text-gray-900 mb-4">Summary</h3>
+          <div>
+            <div className="bg-white rounded-2xl shadow-sm border p-6">
+              <h3 className="font-bold text-gray-900 mb-4">Order Summary</h3>
               <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">{resource.title}</span>
-                  <span className="font-medium">${resource.price.toFixed(2)}</span>
-                </div>
-                <div className="border-t border-gray-100 pt-3 flex justify-between text-lg font-bold">
+                <p className="font-medium text-gray-900">{resource.title}</p>
+                <p className="text-gray-500">{resource.university} &bull; {resource.courseCode}</p>
+                <p className="text-gray-500">Seller: {sellerName}</p>
+                <div className="border-t pt-3 flex justify-between text-lg font-bold">
                   <span>Total</span>
-                  <span className="text-primary-600">${resource.price.toFixed(2)}</span>
+                  <span className="text-primary-600">{formatPKR(resource.price)}</span>
                 </div>
               </div>
             </div>

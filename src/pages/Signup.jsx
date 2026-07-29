@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { UserPlus } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { UNIVERSITIES } from '../data/constants'
 import Notification from '../components/Notification'
 
 export default function Signup() {
@@ -11,59 +12,54 @@ export default function Signup() {
     password: '',
     confirmPassword: '',
     studentId: '',
+    university: '',
   })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const navigate = useNavigate()
   const { signup } = useAuth()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setSuccess('')
 
-    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match!')
       return
     }
-
-    // Validate password length
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long')
       return
     }
+    if (!formData.university) {
+      setError('Please select your university')
+      return
+    }
 
+    setSubmitting(true)
     try {
-      // Attempt to sign up
-      signup(formData)
-      setSuccess(`Welcome ${formData.name}! Your account has been created successfully.`)
-      
-      // Navigate to marketplace after a short delay
-      setTimeout(() => {
-        navigate('/marketplace')
-      }, 2000)
+      await signup(formData)
+      setSuccess(`Welcome ${formData.name}! Your account has been created.`)
+      setTimeout(() => navigate('/marketplace'), 1500)
     } catch (err) {
-      setError(err.message || 'An error occurred during signup. Please try again.')
+      setError(err.message || 'Signup failed. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+    setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <Notification 
-        message={success || error} 
-        type={success ? 'success' : 'error'} 
-        onClose={() => {
-          setSuccess('')
-          setError('')
-        }} 
+      <Notification
+        message={success || error}
+        type={success ? 'success' : 'error'}
+        onClose={() => { setSuccess(''); setError('') }}
       />
       <div className="max-w-md w-full space-y-8">
         <div>
@@ -85,101 +81,56 @@ export default function Signup() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                Full Name
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm transition-colors"
-                placeholder="John Doe"
-                value={formData.name}
-                onChange={handleChange}
-              />
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">Full Name</label>
+              <input id="name" name="name" type="text" required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md sm:text-sm"
+                placeholder="Ahmed Khan" value={formData.name} onChange={handleChange} />
             </div>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm transition-colors"
-                placeholder="you@example.com"
-                value={formData.email}
-                onChange={handleChange}
-              />
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+              <input id="email" name="email" type="email" required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md sm:text-sm"
+                placeholder="you@ned.edu.pk" value={formData.email} onChange={handleChange} />
             </div>
             <div>
-              <label htmlFor="studentId" className="block text-sm font-medium text-gray-700">
-                Student ID
-              </label>
-              <input
-                id="studentId"
-                name="studentId"
-                type="text"
-                required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm transition-colors"
-                placeholder="STU123456"
-                value={formData.studentId}
-                onChange={handleChange}
-              />
+              <label htmlFor="studentId" className="block text-sm font-medium text-gray-700">Student ID</label>
+              <input id="studentId" name="studentId" type="text" required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md sm:text-sm"
+                placeholder="24SP-038-CS" value={formData.studentId} onChange={handleChange} />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm transition-colors"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-              />
+              <label htmlFor="university" className="block text-sm font-medium text-gray-700">University</label>
+              <select id="university" name="university" required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md sm:text-sm"
+                value={formData.university} onChange={handleChange}>
+                <option value="">Select your university</option>
+                {UNIVERSITIES.map((uni) => (
+                  <option key={uni} value={uni}>{uni}</option>
+                ))}
+              </select>
             </div>
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm transition-colors"
-                placeholder="••••••••"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-              />
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+              <input id="password" name="password" type="password" required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md sm:text-sm"
+                value={formData.password} onChange={handleChange} />
+            </div>
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">Confirm Password</label>
+              <input id="confirmPassword" name="confirmPassword" type="password" required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md sm:text-sm"
+                value={formData.confirmPassword} onChange={handleChange} />
             </div>
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
-                {error}
-              </div>
+              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">{error}</div>
             )}
           </div>
-
-          <div>
-            <button
-              type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-primary hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all transform hover:-translate-y-0.5"
-            >
-              Create account
-            </button>
-          </div>
+          <button type="submit" disabled={submitting}
+            className="w-full py-2 px-4 text-sm font-medium rounded-md text-white bg-gradient-primary hover:shadow-lg disabled:opacity-70">
+            {submitting ? 'Creating account...' : 'Create account'}
+          </button>
         </form>
       </div>
     </div>
   )
 }
-

@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -21,10 +22,10 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/marketplace" element={<Marketplace />} />
-            <Route path="/upload" element={<UploadResource />} />
-            <Route path="/my-storefront" element={<MyStorefront />} />
+            <Route path="/upload" element={<ProtectedRoute><UploadResource /></ProtectedRoute>} />
+            <Route path="/my-storefront" element={<ProtectedRoute><MyStorefront /></ProtectedRoute>} />
+            <Route path="/checkout/:resourceId" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
             <Route path="/storefront/:id" element={<Storefront />} />
-            <Route path="/checkout/:resourceId" element={<Checkout />} />
           </Routes>
         </div>
       </Router>
